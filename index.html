@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ห้องทดลอง 3D: อิเล็กตรอนอิสระและกระแสไฟฟ้า ม.5</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--glass:rgba(14,24,50,.66);--line:rgba(148,197,255,.2);--ink:#e8f0ff;--mut:#9fb2d3;--cy:#38bdf8;--am:#fbbf24;--tl:#2dd4bf;--rd:#f87171}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:radial-gradient(ellipse at 25% 15%,#12305f 0%,#070d1f 70%);color:var(--ink);font-family:"Noto Sans Thai",Tahoma,sans-serif;line-height:1.6;overflow:hidden}
+.app{display:grid;grid-template-columns:minmax(0,1fr) 450px;height:100vh;gap:14px;padding:14px}
+.stage{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line);background:radial-gradient(ellipse at 50% 35%,#17396b 0%,#0a1630 62%,#060b1a 100%);box-shadow:0 24px 70px #0009}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+#gl:active{cursor:grabbing}
+.glass{background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:16px}
+.hint{position:absolute;left:14px;top:14px;padding:10px 14px;font-size:.8rem;color:var(--mut);z-index:2;max-width:270px}
+.hint b{display:block;color:var(--ink);font-size:.92rem;margin-bottom:4px}
+.hint span{display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.tools{position:absolute;right:14px;top:14px;display:flex;gap:8px;z-index:4}
+.tools button{background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:8px 13px;font:600 .82rem "Noto Sans Thai",Tahoma,sans-serif;cursor:pointer;transition:.25s}
+.tools button:hover{border-color:var(--cy);transform:translateY(-2px)}
+.tools button.on{background:linear-gradient(135deg,#0ea5e9,#2563eb);border-color:transparent}
+#spots{position:absolute;inset:0;pointer-events:none;z-index:3;overflow:hidden}
+.spot{position:absolute;left:0;top:0;border:0;background:none;padding:0;cursor:pointer;pointer-events:auto;will-change:transform;color:var(--ink)}
+.spot i{position:absolute;left:-14px;top:-14px;width:28px;height:28px;border-radius:50%;background:var(--c);border:2px solid #fff;display:grid;place-items:center;font:700 .85rem Tahoma,sans-serif;font-style:normal;color:#06122a;box-shadow:0 0 18px var(--c);transition:transform .25s}
+.spot i::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--c);animation:pulse 1.9s infinite}
+.spot:hover i{transform:scale(1.2)}
+.spot span{position:absolute;left:20px;top:-12px;white-space:nowrap;font-size:.72rem;font-weight:600;padding:2px 10px;border-radius:99px;background:rgba(6,12,30,.72);border:1px solid var(--line)}
+@keyframes pulse{0%{transform:scale(.8);opacity:1}100%{transform:scale(1.9);opacity:0}}
+.card{position:absolute;left:14px;bottom:14px;width:min(350px,calc(100% - 28px));padding:16px 18px;z-index:5;opacity:0;transform:translateY(24px) scale(.97);pointer-events:none;transition:opacity .35s ease,transform .45s cubic-bezier(.2,.9,.3,1.2);border-top:3px solid var(--c,var(--cy))}
+.card.show{opacity:1;transform:none;pointer-events:auto}
+.card h3{margin:0 0 6px;font-size:1.02rem;display:flex;align-items:center;gap:9px}
+.card h3 i{width:12px;height:12px;border-radius:50%;background:var(--c);box-shadow:0 0 12px var(--c)}
+.card p{margin:0 0 8px;font-size:.88rem;color:#cfdcf5}
+.card .val{font-size:.84rem;background:rgba(56,189,248,.12);border-left:3px solid var(--c);padding:6px 10px;border-radius:6px}
+.card .x{position:absolute;right:10px;top:8px;background:none;border:0;color:var(--mut);font-size:1.2rem;cursor:pointer}
+.panel{display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.ph{padding:18px 20px 10px}
+.ph h1{margin:0;font-size:1.22rem;line-height:1.35;background:linear-gradient(90deg,#fff,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ph p{margin:4px 0 0;font-size:.82rem;color:var(--mut)}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:4px 14px 10px}
+.tab{background:rgba(255,255,255,.05);border:1px solid transparent;color:var(--mut);border-radius:10px;padding:8px 2px;font:600 .8rem "Noto Sans Thai",Tahoma,sans-serif;cursor:pointer;transition:.25s}
+.tab.on{color:#fff;background:linear-gradient(135deg,#0ea5e9,#2563eb);box-shadow:0 6px 18px #0ea5e955}
+.body{flex:1;overflow:auto;padding:4px 18px 18px;min-height:0}
+.pane{display:none}
+.pane.on{display:block;animation:in .45s ease}
+@keyframes in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+h2{font-size:1rem;margin:14px 0 8px}
+ul{margin:0;padding-left:20px;font-size:.88rem;color:#cfdcf5}
+li{margin-bottom:5px}
+.formula{background:linear-gradient(135deg,rgba(37,99,235,.28),rgba(14,165,233,.12));border:1px solid var(--line);border-left:4px solid var(--cy);border-radius:12px;padding:12px 14px;font-size:1rem;margin:12px 0}
+.small{font-size:.8rem;color:var(--mut)}
+.control{margin:14px 0}
+.ct{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.ct label{font-weight:600;font-size:.9rem}
+.value{color:var(--cy);font-weight:700;font-variant-numeric:tabular-nums;font-size:.9rem}
+input[type=range]{width:100%;accent-color:var(--cy);cursor:pointer}
+input:disabled,select:disabled{opacity:.4;cursor:not-allowed}
+.ends{display:flex;justify-content:space-between;color:var(--mut);font-size:.72rem}
+select{width:100%;padding:9px 10px;margin-top:6px;font:inherit;font-size:.88rem;color:var(--ink);background:rgba(255,255,255,.07);border:1px solid var(--line);border-radius:10px}
+select option{color:#0b1226}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn{border:0;background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff;border-radius:10px;padding:9px 15px;font:600 .86rem "Noto Sans Thai",Tahoma,sans-serif;cursor:pointer;transition:.25s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px #0ea5e955}
+.btn.sec{background:rgba(255,255,255,.1)}
+.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:6px}
+.metric{padding:11px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.metric small{display:block;color:var(--mut);font-size:.72rem;line-height:1.35;margin-bottom:3px}
+.metric strong{font-size:.98rem;overflow-wrap:anywhere}
+canvas#graph{display:block;width:100%;height:auto;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.lg{display:flex;flex-wrap:wrap;gap:12px;font-size:.78rem;color:var(--mut);margin-top:8px}
+.lg span{display:flex;align-items:center;gap:6px}
+.q{border:1px solid var(--line);background:rgba(255,255,255,.04);border-radius:12px;padding:12px 14px;margin:10px 0}
+.q p{margin:0 0 6px;font-weight:600;font-size:.88rem}
+.q label{display:block;padding:4px 6px;border-radius:8px;cursor:pointer;font-size:.86rem}
+.q label:hover{background:rgba(56,189,248,.12)}
+.fb{margin-top:6px;font-weight:700;font-size:.86rem}
+.ok{color:#34d399}
+.no{color:var(--am)}
+.ans{display:none;margin-top:6px;padding:8px 10px;border-radius:8px;background:rgba(52,211,153,.12);font-size:.82rem;animation:in .4s ease}
+#score{font-weight:700;margin-top:10px;color:var(--tl)}
+@media(max-width:960px){
+body{overflow:auto}
+.app{display:block;height:auto;padding:10px}
+.stage{height:64vh;min-height:400px;margin-bottom:12px}
+.panel{height:auto}
+.body{overflow:visible}
+.hint{max-width:210px}
+.tools button{padding:7px 10px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<section class="stage" id="stage">
+<canvas id="gl" aria-label="ฉาก 3 มิติแสดงอิเล็กตรอนในลวดตัวนำ"></canvas>
+<div id="spots"></div>
+<div class="hint glass"><b>ลากเพื่อหมุน · ล้อเมาส์ซูม · คลิกขวาแพน</b><span><i class="dot" style="background:#38bdf8"></i>อิเล็กตรอนอิสระ</span><span><i class="dot" style="background:#fb923c"></i>ไอออนบวกในโครงผลึก</span><span><i class="dot" style="background:#fbbf24"></i>ทิศกระแสไฟฟ้าแบบดั้งเดิม</span></div>
+<div class="tools"><button id="pause">หยุด</button><button id="auto">หมุนอัตโนมัติ</button><button id="view">รีเซ็ตมุมมอง</button></div>
+<div class="card glass" id="card"><button class="x" id="cardX" aria-label="ปิด">×</button><h3><i></i><span id="cardT"></span></h3><div id="cardB"></div></div>
+</section>
+<aside class="panel glass">
+<div class="ph"><h1>ห้องทดลอง 3D: อิเล็กตรอนอิสระและกระแสไฟฟ้า</h1><p>ฟิสิกส์ ม.5 · ปรับตัวแปร สังเกตภาพ 3 มิติ และวิเคราะห์แบบเรียลไทม์</p></div>
+<div class="tabs"><button class="tab on" data-t="p1">ทฤษฎี</button><button class="tab" data-t="p2">ทดลอง</button><button class="tab" data-t="p3">กราฟ</button><button class="tab" data-t="p4">แบบฝึกหัด</button></div>
+<div class="body">
+<div class="pane on" id="p1">
+<h2>เป้าหมายการเรียนรู้</h2>
+<ul><li>อธิบายการเคลื่อนที่แบบสุ่มของอิเล็กตรอนและความเร็วลอยเลื่อนเมื่อมีสนามไฟฟ้าได้</li><li>วิเคราะห์ความสัมพันธ์ระหว่างกระแสไฟฟ้า ความเร็วลอยเลื่อน ความหนาแน่นอิเล็กตรอน และพื้นที่หน้าตัดได้</li><li>คำนวณปริมาณที่เกี่ยวข้องจากสมการกระแสไฟฟ้าได้</li></ul>
+<div class="formula"><b>สมการสำคัญ</b><br>I = n e A v<sub>d</sub> &nbsp;และ&nbsp; v<sub>d</sub> = I / (n e A)<br><span class="small">I = กระแสไฟฟ้า (A), n = ความหนาแน่นอิเล็กตรอน (m⁻³), e = 1.602 × 10⁻¹⁹ C, A = พื้นที่หน้าตัด (m²), v<sub>d</sub> = อัตราเร็วลอยเลื่อน (m/s)</span></div>
+<p class="small">ข้อควรจำ: อิเล็กตรอนมีประจุลบ จึงลอยเลื่อนทวนทิศกระแสไฟฟ้าแบบดั้งเดิม ภาพ 3 มิติเป็นภาพจำลองเชิงแนวคิด ไม่ได้แสดงขนาดหรือจำนวนจริงตามมาตราส่วน</p>
+<h2>วิธีใช้</h2>
+<ul><li>คลิกจุดเรืองแสงในฉาก 3 มิติเพื่อเปิดการ์ดอธิบาย</li><li>ไปที่แท็บ “ทดลอง” เพื่อปรับค่า n, A, v<sub>d</sub> หรือ I</li><li>ลวดจะอ้วนขึ้นเมื่อ A เพิ่ม และมีอิเล็กตรอนมากขึ้นเมื่อ n เพิ่ม</li></ul>
+</div>
+<div class="pane" id="p2">
+<div class="control"><div class="ct"><label for="current">กระแสไฟฟ้า I</label><span class="value" id="currentVal"></span></div><input id="current" type="range" min="0.1" max="10" step="0.01" value="1.28"><div class="ends"><span>0.1 A</span><span>10 A</span></div></div>
+<div class="control"><div class="ct"><label for="drift">ความเร็วลอยเลื่อน v<sub>d</sub></label><span class="value" id="driftVal"></span></div><input id="drift" type="range" min="0.0001" max="0.01" step="0.0001" value="0.0001"><div class="ends"><span>0.0001 m/s</span><span>0.0100 m/s</span></div></div>
+<div class="control"><div class="ct"><label for="density">ความหนาแน่นอิเล็กตรอน n</label><span class="value" id="densityVal"></span></div><input id="density" type="range" min="1" max="15" step="0.5" value="8"><div class="ends"><span>1 × 10²⁸</span><span>15 × 10²⁸ m⁻³</span></div></div>
+<div class="control"><div class="ct"><label for="area">พื้นที่หน้าตัด A</label><span class="value" id="areaVal"></span></div><input id="area" type="range" min="0.1" max="5" step="0.1" value="1"><div class="ends"><span>0.1 mm²</span><span>5 mm²</span></div></div>
+<div class="control"><label for="mode" style="font-weight:600;font-size:.9rem">โหมดทดลอง</label><select id="mode"><option value="explore">โหมด 1: สำรวจความสัมพันธ์ (คำนวณ I)</option><option value="single">โหมด 2: ทดลองทีละตัวแปร</option><option value="challenge">โหมด 3: โจทย์ท้าทาย (คำนวณ v<sub>d</sub>)</option></select></div>
+<div class="control" id="singleControl" style="display:none"><label for="vary" style="font-weight:600;font-size:.9rem">ตัวแปรที่ต้องการเปลี่ยน</label><select id="vary"><option value="v">ความเร็วลอยเลื่อน v_d</option><option value="n">ความหนาแน่นอิเล็กตรอน n</option><option value="A">พื้นที่หน้าตัด A</option></select></div>
+<p class="formula" id="modeHelp" style="font-size:.86rem"></p>
+<div class="btns"><button class="btn sec" id="reset">คืนค่าเริ่มต้น</button></div>
+<h2>ค่าที่คำนวณได้</h2>
+<div class="metrics">
+<div class="metric"><small>กระแสที่คำนวณจาก n, A, v<sub>d</sub></small><strong id="calcI"></strong></div>
+<div class="metric"><small>ความเร็วที่สอดคล้องกับ I</small><strong id="calcV"></strong></div>
+<div class="metric"><small>ประจุผ่านหน้าตัดใน 1 s (Q = It)</small><strong id="charge"></strong></div>
+<div class="metric"><small>อิเล็กตรอนผ่านหน้าตัดต่อวินาที (I/e)</small><strong id="count"></strong></div>
+</div>
+<p class="small" id="consistency"></p>
+</div>
+<div class="pane" id="p3">
+<h2>กราฟ I – v<sub>d</sub></h2>
+<p class="small">แสดงเส้นทฤษฎี จุดค่าปัจจุบัน และจุดอ้างอิงก่อนปรับ</p>
+<canvas id="graph" width="640" height="340" aria-label="กราฟความสัมพันธ์ของกระแสไฟฟ้ากับความเร็วลอยเลื่อน"></canvas>
+<div class="lg"><span><i class="dot" style="background:#38bdf8"></i>เส้นทฤษฎี I = neAv<sub>d</sub></span><span><i class="dot" style="background:#f87171"></i>ค่าปัจจุบัน</span><span><i class="dot" style="background:#94a3b8"></i>จุดอ้างอิง</span></div>
+<p class="small" id="graphNote" style="margin-top:10px"></p>
+</div>
+<div class="pane" id="p4">
+<p class="small">เลือกคำตอบแล้วกด “ตรวจคำตอบ” เพื่อดูผลและเฉลย</p>
+<div id="quiz"></div>
+<div class="btns"><button class="btn" id="checkQuiz">ตรวจคำตอบ</button><button class="btn sec" id="showAnswers">แสดง/ซ่อนเฉลยทั้งหมด</button></div>
+<p id="score" aria-live="polite"></p>
+</div>
+</div>
+</aside>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(()=>{
+const E=1.602176634e-19,$=id=>document.getElementById(id);
+const c={I:$('current'),v:$('drift'),n:$('density'),A:$('area')};
+const base={I:1.28,v:.0001};
+let running=true,R=.74,N=88,vn=0,t=0;
+const vals=()=>({I:+c.I.value,v:+c.v.value,n:+c.n.value*1e28,A:+c.A.value*1e-6});
+const sci=x=>{const [m,ex]=x.toExponential(2).split('e');return m+' × 10<sup>'+(+ex)+'</sup>'};
+const radiusOf=A=>.4+.34*Math.sqrt(A*1e6);
+
+const stage=$('stage'),cv=$('gl');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.15;
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(42,1,.1,100);
+camera.position.set(7.5,4.2,10);
+const controls=new THREE.OrbitControls(camera,cv);
+controls.enableDamping=true;controls.dampingFactor=.07;controls.minDistance=5;controls.maxDistance=24;controls.maxPolarAngle=Math.PI*.49;controls.autoRotateSpeed=1.4;
+
+scene.add(new THREE.AmbientLight(0x9db8ff,.55));
+const sun=new THREE.DirectionalLight(0xffffff,1.15);
+sun.position.set(4,9,6);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0005;
+Object.assign(sun.shadow.camera,{left:-9,right:9,top:9,bottom:-9,near:1,far:30});
+scene.add(sun);
+const p1=new THREE.PointLight(0x38bdf8,1.1,24);p1.position.set(-6,2.5,4);scene.add(p1);
+const p2=new THREE.PointLight(0xfb923c,.9,24);p2.position.set(6,2.5,-4);scene.add(p2);
+
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(40,40),new THREE.ShadowMaterial({opacity:.42}));
+floor.rotation.x=-Math.PI/2;floor.position.y=-2.2;floor.receiveShadow=true;scene.add(floor);
+const grid=new THREE.GridHelper(30,30,0x3b82f6,0x1e3a5f);
+grid.position.y=-2.19;grid.material.transparent=true;grid.material.opacity=.35;scene.add(grid);
+
+const wire=new THREE.Mesh((()=>{const g=new THREE.CylinderGeometry(1,1,10,56,1,true);g.rotateZ(Math.PI/2);return g})(),new THREE.MeshPhysicalMaterial({color:0x9fd4ff,transparent:true,opacity:.2,roughness:.06,metalness:.1,clearcoat:1,side:THREE.DoubleSide,depthWrite:false}));
+wire.castShadow=true;scene.add(wire);
+const copper=new THREE.MeshStandardMaterial({color:0xb87333,metalness:.85,roughness:.32});
+const caps=[-5.25,5.25].map(x=>{const g=new THREE.CylinderGeometry(1,1,.5,56);g.rotateZ(Math.PI/2);const m=new THREE.Mesh(g,copper);m.position.x=x;m.castShadow=true;scene.add(m);return m});
+
+const sec=new THREE.Group();
+const secDisc=new THREE.Mesh((()=>{const g=new THREE.CircleGeometry(1,56);g.rotateY(Math.PI/2);return g})(),new THREE.MeshBasicMaterial({color:0xfbbf24,transparent:true,opacity:.3,side:THREE.DoubleSide,depthWrite:false}));
+const secRing=new THREE.Mesh((()=>{const g=new THREE.RingGeometry(.96,1,64);g.rotateY(Math.PI/2);return g})(),new THREE.MeshBasicMaterial({color:0xfde68a,transparent:true,opacity:.95,side:THREE.DoubleSide}));
+sec.add(secDisc,secRing);scene.add(sec);
+
+const dummy=new THREE.Object3D();
+const rings=[[1,0],[6,.5],[12,.86]];
+const ionPos=Array.from({length:228},()=>new THREE.Vector3());
+const ions=new THREE.InstancedMesh(new THREE.SphereGeometry(.15,18,14),new THREE.MeshStandardMaterial({color:0xfb923c,emissive:0x7c2d12,emissiveIntensity:.5,roughness:.35,metalness:.3}),228);
+ions.castShadow=true;scene.add(ions);
+function layoutIons(){
+let k=0;
+for(let ix=0;ix<12;ix++){for(const [cnt,rd] of rings){for(let j=0;j<cnt;j++){
+const a=j/cnt*Math.PI*2+(ix%2)*.26;
+ionPos[k].set(-4.6+ix*.84,Math.cos(a)*rd*R*.82,Math.sin(a)*rd*R*.82);
+dummy.position.copy(ionPos[k]);dummy.rotation.set(0,0,0);dummy.scale.setScalar(1);dummy.updateMatrix();
+ions.setMatrixAt(k++,dummy.matrix);
+}}}
+ions.instanceMatrix.needsUpdate=true;
+}
+
+const MAX=200;
+const ed=Array.from({length:MAX},(_,i)=>({u:Math.random(),rf:Math.sqrt(Math.random())*.8,th:Math.random()*6.283,s:i%2?1:-1,p:Array.from({length:6},()=>Math.random()*6.283)}));
+const els=new THREE.InstancedMesh(new THREE.SphereGeometry(.1,18,14),new THREE.MeshStandardMaterial({color:0x38bdf8,emissive:0x0ea5e9,emissiveIntensity:.9,roughness:.25}),MAX);
+els.instanceMatrix.setUsage(THREE.DynamicDrawUsage);els.count=N;scene.add(els);
+
+function makeArrow(color,flip){
+const g=new THREE.Group(),m=new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.55,roughness:.3});
+const sh=new THREE.Mesh((()=>{const q=new THREE.CylinderGeometry(.06,.06,2,18);q.rotateZ(Math.PI/2);return q})(),m);
+const cn=new THREE.Mesh((()=>{const q=new THREE.ConeGeometry(.17,.45,24);q.rotateZ(-Math.PI/2);return q})(),m);
+cn.position.x=1.22;sh.castShadow=true;g.add(sh,cn);
+if(flip)g.rotation.y=Math.PI;
+scene.add(g);return g;
+}
+const arI=makeArrow(0xfbbf24,false),arE=makeArrow(0x38bdf8,true);
+
+function applyRadius(){
+wire.scale.set(1,R,R);caps.forEach(m=>m.scale.set(1,R*1.08,R*1.08));sec.scale.set(1,R,R);
+arI.position.set(0,R+.75,-.7);arE.position.set(0,R+.75,.7);
+layoutIons();
+}
+
+const tmp=new THREE.Vector3();
+const spots=[
+{k:'e',t:'อิเล็กตรอนอิสระ',col:'#38bdf8',pos:()=>tmp.set(-2.4,R*.3,R*.45),
+b:()=>'<p>อิเล็กตรอนอิสระเคลื่อนที่สุ่มในทุกทิศทางด้วยอัตราเร็วสูง เมื่อมีสนามไฟฟ้าจะมีการลอยเลื่อนเฉลี่ยทวนทิศกระแสด้วยอัตราเร็วที่ช้ามาก</p><div class="val">v<sub>d</sub> ปัจจุบัน = '+vals().v.toExponential(2)+' m/s<br>จำนวนอนุภาคในภาพ = '+N+' ตัว (ตามค่า n)</div>'},
+{k:'i',t:'ไอออนบวกในโครงผลึก',col:'#fb923c',pos:()=>ionPos[134],
+b:()=>'<p>อะตอมของโลหะเสียอิเล็กตรอนวาเลนซ์กลายเป็นไอออนบวก อยู่ประจำที่และสั่นเล็กน้อย อิเล็กตรอนที่ชนไอออนทำให้เกิดความต้านทานในตัวนำ</p><div class="val">อิเล็กตรอนอิสระ 1 ตัวต่อไอออนโดยประมาณ</div>'},
+{k:'a',t:'พื้นที่หน้าตัด A',col:'#fbbf24',pos:()=>tmp.set(0,R*.75,0),
+b:()=>{const o=vals();return '<p>ประจุที่ไหลผ่านหน้าตัดนี้ในหนึ่งวินาทีคือกระแสไฟฟ้า ถ้า I และ n คงที่ เมื่อ A เพิ่ม v<sub>d</sub> จะลดลง (v<sub>d</sub> ∝ 1/A)</p><div class="val">A = '+(o.A*1e6).toFixed(2)+' mm²<br>v<sub>d</sub> = I/(neA) = '+(o.I/(o.n*E*o.A)).toExponential(2)+' m/s</div>'}},
+{k:'c',t:'ทิศกระแสและทิศอิเล็กตรอน',col:'#34d399',pos:()=>tmp.set(0,R+1.15,0),
+b:()=>'<p>ลูกศรสีเหลืองคือทิศกระแสไฟฟ้าแบบดั้งเดิม (ทิศที่ประจุบวกเคลื่อนที่) ส่วนลูกศรสีฟ้าคือทิศลอยเลื่อนจริงของอิเล็กตรอน ซึ่งสวนทางกัน</p><div class="val">I = '+vals().I.toFixed(2)+' A → ทิศ +x</div>'}
+];
+const spotsEl=$('spots');
+spots.forEach(s=>{
+const b=document.createElement('button');
+b.className='spot';b.style.setProperty('--c',s.col);
+b.innerHTML='<i>i</i><span>'+s.t+'</span>';
+b.addEventListener('click',()=>showCard(s));
+s.el=b;spotsEl.appendChild(b);
+});
+let openSpot=null;
+function showCard(s){
+openSpot=s;
+const cd=$('card');
+cd.style.setProperty('--c',s.col);
+$('cardT').textContent=s.t;$('cardB').innerHTML=s.b();
+cd.classList.remove('show');void cd.offsetWidth;cd.classList.add('show');
+}
+$('cardX').addEventListener('click',()=>{openSpot=null;$('card').classList.remove('show')});
+
+function resize(){
+const w=stage.clientWidth,h=stage.clientHeight;
+if(!w||!h)return;
+renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();
+}
+window.addEventListener('resize',resize);
+if(window.ResizeObserver)new ResizeObserver(resize).observe(stage);
+
+const clock=new THREE.Clock();
+function tick(){
+requestAnimationFrame(tick);
+const dt=Math.min(clock.getDelta(),.05)*(running?1:0);
+t+=dt;
+const rate=.025+.35*Math.sqrt(vn);
+for(let i=0;i<N;i++){
+const d=ed[i],p=d.p;
+d.u-=rate*dt;if(d.u<0)d.u+=1;
+d.th+=dt*.5*d.s;
+const x=-5+10*d.u+.15*Math.sin(t*2.6+p[0])+.1*Math.sin(t*4.1+p[1]);
+let y=Math.cos(d.th)*d.rf*R+.14*Math.sin(t*3.1+p[2]),z=Math.sin(d.th)*d.rf*R+.14*Math.sin(t*3.7+p[3]);
+const r=Math.hypot(y,z),lim=R*.92;
+if(r>lim){y*=lim/r;z*=lim/r}
+dummy.position.set(x,y,z);dummy.rotation.set(0,0,0);dummy.scale.setScalar(1);dummy.updateMatrix();
+els.setMatrixAt(i,dummy.matrix);
+}
+els.instanceMatrix.needsUpdate=true;
+secDisc.material.opacity=.24+.12*Math.sin(t*2);
+arI.position.y=R+.75+.06*Math.sin(t*2.2);arE.position.y=R+.75+.06*Math.sin(t*2.2+1.5);
+controls.update();
+renderer.render(scene,camera);
+const w=stage.clientWidth,h=stage.clientHeight;
+spots.forEach(s=>{
+const v=s.pos().clone().project(camera);
+if(v.z>1||v.z<-1){s.el.style.display='none';return}
+s.el.style.display='block';
+s.el.style.transform='translate('+((v.x*.5+.5)*w).toFixed(1)+'px,'+((-v.y*.5+.5)*h).toFixed(1)+'px)';
+});
+}
+
+function drawGraph(){
+const g=$('graph'),x=g.getContext('2d'),W=g.width,H=g.height,p={l:64,r:20,t:22,b:52},w=W-p.l-p.r,h=H-p.t-p.b;
+x.clearRect(0,0,W,H);
+const {I,v,n,A}=vals(),vm=.01,k=n*E*A,im=Math.max(1,k*vm,I*1.15,base.I*1.15);
+x.font='13px "Noto Sans Thai",Tahoma';x.lineWidth=1;x.strokeStyle='rgba(148,197,255,.15)';x.fillStyle='#9fb2d3';
+for(let j=0;j<=5;j++){const y=p.t+h*j/5;x.beginPath();x.moveTo(p.l,y);x.lineTo(W-p.r,y);x.stroke();x.fillText((im*(1-j/5)).toPrecision(2),10,y+4);}
+for(let j=0;j<=5;j++){const xx=p.l+w*j/5;x.beginPath();x.moveTo(xx,p.t);x.lineTo(xx,p.t+h);x.stroke();x.fillText((vm*j/5).toFixed(3),xx-16,H-p.b+20);}
+x.strokeStyle='#64748b';x.beginPath();x.moveTo(p.l,p.t);x.lineTo(p.l,H-p.b);x.lineTo(W-p.r,H-p.b);x.stroke();
+x.fillStyle='#e8f0ff';x.font='bold 14px "Noto Sans Thai",Tahoma';x.fillText('I (A)',10,16);x.fillText('v_d (m/s)',W/2-30,H-10);
+const gr=x.createLinearGradient(p.l,0,W-p.r,0);gr.addColorStop(0,'#38bdf8');gr.addColorStop(1,'#2dd4bf');
+x.strokeStyle=gr;x.lineWidth=3;x.beginPath();
+for(let j=0;j<=100;j++){const vv=vm*j/100,xx=p.l+w*vv/vm,yy=p.t+h*(1-k*vv/im);j?x.lineTo(xx,yy):x.moveTo(xx,yy);}
+x.stroke();
+const dot=(vv,ii,col)=>{const xx=p.l+w*Math.max(0,Math.min(vm,vv))/vm,yy=p.t+h*(1-Math.max(0,Math.min(im,ii))/im);x.shadowColor=col;x.shadowBlur=14;x.fillStyle=col;x.beginPath();x.arc(xx,yy,7,0,Math.PI*2);x.fill();x.shadowBlur=0;};
+dot(base.v,base.I,'#94a3b8');dot(v,I,'#f87171');
+}
+
+function setMode(){
+const m=$('mode').value;
+$('singleControl').style.display=m==='single'?'block':'none';
+c.I.disabled=m!=='challenge';c.v.disabled=m==='challenge';c.n.disabled=false;c.A.disabled=false;
+if(m==='single'){const s=$('vary').value;c.v.disabled=s!=='v';c.n.disabled=s!=='n';c.A.disabled=s!=='A';}
+$('modeHelp').innerHTML=m==='challenge'?'กำหนด I, n และ A แล้วระบบคำนวณ v<sub>d</sub> = I/(neA)':m==='single'?'ปรับเฉพาะตัวแปรที่เลือก ส่วนตัวแปรอื่นคงที่ แล้วสังเกตผลต่อ I':'กำหนด n, A และ v<sub>d</sub> แล้วระบบคำนวณ I = neAv<sub>d</sub> อัตโนมัติ';
+}
+
+function update(){
+const m=$('mode').value;
+if(m==='challenge'){const o=vals();c.v.value=Math.max(.0001,Math.min(.01,o.I/(o.n*E*o.A)));}
+else{const o=vals();c.I.value=Math.max(.1,Math.min(10,o.n*E*o.A*o.v));}
+const {I,v,n,A}=vals(),calc=n*E*A*v;
+$('currentVal').textContent=I.toFixed(2)+' A';
+$('driftVal').innerHTML=sci(v)+' m/s';
+$('densityVal').textContent=(n/1e28).toFixed(2)+' × 10²⁸ m⁻³';
+$('areaVal').textContent=(A*1e6).toFixed(2)+' mm²';
+$('calcI').textContent=calc.toFixed(3)+' A';
+$('calcV').innerHTML=sci(I/(n*E*A))+' m/s';
+$('charge').textContent=I.toFixed(2)+' C';
+$('count').innerHTML=sci(I/E)+' ตัว/s';
+$('consistency').textContent=m==='challenge'?'โหมดโจทย์ท้าทาย: คำนวณความเร็วลอยเลื่อนจาก I, n และ A':'คำนวณจากสมการ I = neAv_d ค่ากระแสที่แสดงอาจถูกจำกัดด้วยช่วงของแถบเลื่อน';
+$('graphNote').innerHTML='เมื่อ n และ A คงที่ ความชัน = neA = '+sci(n*E*A)+' A·s/m ความชันเพิ่มเมื่อ n หรือ A เพิ่ม';
+vn=Math.max(0,Math.min(1,(v-.0001)/.0099));
+N=Math.round(Math.max(1,Math.min(MAX,n/1e28*11)));els.count=N;
+const nr=radiusOf(A);
+if(Math.abs(nr-R)>1e-6){R=nr;applyRadius();}
+drawGraph();
+if(openSpot)$('cardB').innerHTML=openSpot.b();
+}
+
+Object.values(c).forEach(el=>el.addEventListener('input',update));
+$('mode').addEventListener('change',()=>{setMode();update();});
+$('vary').addEventListener('change',()=>{setMode();update();});
+$('reset').addEventListener('click',()=>{c.I.value=1.28;c.v.value=.0001;c.n.value=8;c.A.value=1;$('mode').value='explore';setMode();update();});
+$('pause').addEventListener('click',()=>{running=!running;$('pause').textContent=running?'หยุด':'เล่นต่อ';$('pause').classList.toggle('on',!running);});
+$('auto').addEventListener('click',()=>{controls.autoRotate=!controls.autoRotate;$('auto').classList.toggle('on',controls.autoRotate);});
+$('view').addEventListener('click',()=>{camera.position.set(7.5,4.2,10);controls.target.set(0,0,0);controls.update();});
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
+document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));
+document.querySelectorAll('.pane').forEach(x=>x.classList.toggle('on',x.id===b.dataset.t));
+if(b.dataset.t==='p3')drawGraph();
+}));
+
+const Q=[
+{q:'ข้อ 1: ถ้าเพิ่มความเร็วลอยเลื่อน v_d เป็น 2 เท่า โดย n และ A คงที่ กระแสไฟฟ้าจะเป็นอย่างไร?',o:['ก. ลดลงครึ่งหนึ่ง','ข. เพิ่มเป็น 2 เท่า','ค. ไม่เปลี่ยนแปลง'],a:1,e:'เฉลย: ข. I = neAv_d จึงแปรผันตรงกับ v_d เมื่อปัจจัยอื่นคงที่'},
+{q:'ข้อ 2: ลวดสองเส้นมีกระแสเท่ากันและมี n เท่ากัน เส้นที่มีพื้นที่หน้าตัด A มากกว่าจะมีความเร็วลอยเลื่อนอย่างไร?',o:['ก. น้อยกว่า','ข. มากกว่า','ค. เท่ากัน'],a:0,e:'เฉลย: ก. จาก v_d = I/(neA) เมื่อ I และ n คงที่ ความเร็วลอยเลื่อนแปรผกผันกับ A'},
+{q:'ข้อ 3: n = 8.0 × 10²⁸ m⁻³, A = 1.0 × 10⁻⁶ m² และ v_d = 1.0 × 10⁻⁴ m/s จงหากระแสไฟฟ้า (e = 1.602 × 10⁻¹⁹ C)',o:['ก. 0.128 A','ข. 12.8 A','ค. 1.28 A'],a:2,e:'เฉลย: ค. I = neAv_d ≈ 1.28 A'}
+];
+const quiz=$('quiz');
+Q.forEach((d,i)=>{
+const q=document.createElement('div');q.className='q';
+q.innerHTML='<p>'+d.q+'</p>'+d.o.map((o,j)=>'<label><input type="radio" name="q'+i+'" value="'+j+'"> '+o+'</label>').join('')+'<div class="ans">'+d.e+'</div>';
+quiz.appendChild(q);
+});
+$('checkQuiz').addEventListener('click',()=>{
+let s=0;
+quiz.querySelectorAll('.q').forEach((q,i)=>{
+const a=q.querySelector('input:checked'),ok=!!a&&+a.value===Q[i].a;
+if(ok)s++;
+let f=q.querySelector('.fb');
+if(!f){f=document.createElement('div');q.appendChild(f);}
+f.className='fb '+(ok?'ok':'no');
+f.textContent=ok?'ถูกต้อง':'ยังไม่ถูก ลองดูเฉลยด้านล่าง';
+q.querySelector('.ans').style.display='block';
+});
+$('score').textContent='คะแนนของคุณ: '+s+'/3 ข้อ';
+});
+$('showAnswers').addEventListener('click',()=>quiz.querySelectorAll('.ans').forEach(a=>a.style.display=a.style.display==='block'?'none':'block'));
+
+setMode();
+update();
+resize();
+tick();
+})();
+</script>
+</body>
+</html>
